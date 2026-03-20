@@ -1,36 +1,94 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# loro-whiteboard
 
-## Getting Started
+A local-first collaborative whiteboard built with [tldraw](https://tldraw.dev), [Loro CRDT](https://loro.dev), and Next.js.
 
-First, run the development server:
+Open a board URL in multiple tabs or browsers to collaborate in real time. Edits are persisted locally in IndexedDB and synced via a lightweight WebSocket relay.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Stack
+
+| Concern | Library |
+|---|---|
+| Framework | Next.js 16 (App Router, Turbopack dev) |
+| Canvas | tldraw 4.x (library mode) |
+| CRDT | loro-crdt 1.x (WASM) |
+| IndexedDB | idb 8.x |
+| WebSocket relay | ws (Node.js) |
+| Package manager | pnpm |
+| Testing | Vitest |
+
+## Getting started
+
+```sh
+pnpm install
+pnpm run dev:all   # Next.js on :3000 + WebSocket relay on :4000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Navigate to `http://localhost:3000` — you'll be redirected to a new board with a random UUID. Share the URL to collaborate.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Commands
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```sh
+pnpm run dev:all      # Next.js + WS relay (concurrently)
+pnpm run dev          # Next.js only
+pnpm run dev:server   # WS relay only
+pnpm test             # Vitest (24 tests)
+pnpm test:watch       # Vitest watch mode
+pnpm build            # Production build (uses webpack for WASM)
+```
 
-## Learn More
+## Architecture
 
-To learn more about Next.js, take a look at the following resources:
+**Key invariant:** The Web Worker is the sole owner of the Loro CRDT document. The main thread never imports `loro-crdt`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+Main thread:  tldraw → ShapeAdapter → WorkerBridge → postMessage
+Worker:       postMessage → loro.worker.ts → LoroDoc + SnapshotStore + WsClient
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Domain structure (`src/domains/`)
 
-## Deploy on Vercel
+| Domain | Files | Responsibility |
+|---|---|---|
+| `canvas/` | `whiteboard.tsx`, `shape-adapter.ts`, `worker-bridge.ts` | tldraw mount, store↔worker bridge |
+| `crdt/` | `loro-doc.ts`, `loro-codec.ts`, `loro.worker.ts` | CRDT ownership, encode/decode shapes |
+| `sync/` | `ws-client.ts` | WebSocket connect/reconnect/backoff |
+| `storage/` | `idb.ts`, `snapshot-store.ts` | IndexedDB persistence (debounced) |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Message protocol
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Direction | Type | Payload |
+|---|---|---|
+| Main → Worker | `INIT` | `{ roomId }` |
+| Main → Worker | `LOCAL_CHANGES` | `{ diff: TldrawShapeDiff }` |
+| Main → Worker | `LOCAL_DELETE` | `{ ids: string[] }` |
+| Worker → Main | `SNAPSHOT` | `{ shapes: TldrawShape[] }` |
+| Worker → Main | `SYNC_STATUS` | `{ status: "online" \| "offline" \| "syncing" }` |
+
+Remote updates currently send a full `SNAPSHOT` (not `REMOTE_PATCH`). The ShapeAdapter SNAPSHOT handler diffs against the current store and removes shapes no longer present.
+
+### WebSocket relay (`server/index.ts`)
+
+Stores the latest full snapshot per room in memory. Sends it to new joiners. Clients always send full snapshots so the server always has complete state.
+
+## Data model
+
+Each shape in the CRDT:
+
+```
+shapes[shapeId]: LoroMap { type, x, y, rotation, isLocked, opacity, parentId, index, props: LoroMap }
+```
+
+`opacity` is required by tldraw's record validator. Non-primitive `props` values are JSON-serialized.
+
+## Environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `NEXT_PUBLIC_WS_URL` | `ws://localhost:4000` | WebSocket relay URL |
+
+## Known limitations
+
+- Server is in-memory only — room state is lost on server restart.
+- `REMOTE_PATCH` is wired but unused — remote updates send full `SNAPSHOT`.
+- `pending-ops` IDB store is implemented but not flushed on reconnect (in-memory WsClient queue handles same-session offline).
+- Single page per board (`parentId` defaults to `"page:page"`).
