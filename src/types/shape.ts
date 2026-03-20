@@ -15,6 +15,8 @@ export interface TldrawShape {
   parentId: string | undefined;
   /** Fractional index for z-ordering (tldraw uses IndexKey strings). */
   index: string;
+  /** Shape opacity (0–1). Required by tldraw's record validator. */
+  opacity: number;
   props: Record<string, unknown>;
 }
 

@@ -10,6 +10,7 @@ const makeShape = (overrides: Partial<TldrawShape> = {}): TldrawShape => ({
   y: 200,
   rotation: 0,
   isLocked: false,
+  opacity: 1,
   parentId: undefined,
   index: "a1",
   props: { w: 120, h: 80, color: "blue" },

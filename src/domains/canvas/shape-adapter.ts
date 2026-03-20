@@ -17,6 +17,7 @@ function tldrawRecordToShape(record: TLRecord): TldrawShape {
     isLocked: s.isLocked ?? false,
     parentId: s.parentId === "page:page" ? undefined : s.parentId,
     index: s.index ?? "a1",
+    opacity: s.opacity ?? 1,
     props: s.props ?? {},
   };
 }
@@ -116,6 +117,7 @@ export class ShapeAdapter {
       y: shape.y,
       rotation: shape.rotation,
       isLocked: shape.isLocked,
+      opacity: shape.opacity ?? 1,
       parentId: shape.parentId ?? "page:page",
       index: (shape.index ?? "a1") as any,
       props: shape.props,
