@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:server": "cd server && npx tsx watch index.ts",
+    "dev:all": "concurrently --names \"next,ws\" -c \"blue,green\" \"npm run dev\" \"npm run dev:server\"",
     "build": "next build",
     "start": "next start"
   },
