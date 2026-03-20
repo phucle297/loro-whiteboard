@@ -62,15 +62,19 @@ self.onmessage = async (e: MessageEvent<MainToWorkerMessage>) => {
 
   if (msg.type === "LOCAL_CHANGES") {
     loroCodec.applyDiff(loroDoc, msg.diff);
-    const update = loroDoc.commit();
-    wsClient?.send(update);
-    snapshotStore?.save(loroDoc.exportSnapshot());
+    loroDoc.commit();
+    // Send full snapshot so the server always has complete state for late joiners.
+    // Loro snapshot imports are idempotent, so peers can safely import them.
+    const snapshot = loroDoc.exportSnapshot();
+    wsClient?.send(snapshot);
+    snapshotStore?.save(snapshot);
   }
 
   if (msg.type === "LOCAL_DELETE") {
     loroCodec.removeShapes(loroDoc, msg.ids);
-    const update = loroDoc.commit();
-    wsClient?.send(update);
-    snapshotStore?.save(loroDoc.exportSnapshot());
+    loroDoc.commit();
+    const snapshot = loroDoc.exportSnapshot();
+    wsClient?.send(snapshot);
+    snapshotStore?.save(snapshot);
   }
 };

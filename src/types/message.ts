@@ -4,11 +4,10 @@ import type { TldrawShape, TldrawShapeDiff } from "./shape";
 // Main → Worker messages
 // ---------------------------------------------------------------------------
 
-/** Initialise the worker for a given room and user. */
+/** Initialise the worker for a given room. */
 export interface InitMessage {
   type: "INIT";
   roomId: string;
-  userId: string;
 }
 
 /** Notify the worker of locally-made shape additions or updates. */

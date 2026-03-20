@@ -33,6 +33,7 @@ export class LoroCodec {
     shapeMap.set("rotation", shape.rotation);
     shapeMap.set("isLocked", shape.isLocked);
     shapeMap.set("parentId", shape.parentId ?? "");
+    shapeMap.set("index", shape.index ?? "a1");
 
     const propsMap = shapeMap.getOrCreateContainer("props", new LoroMap());
     for (const [key, value] of Object.entries(shape.props)) {
@@ -93,6 +94,7 @@ export class LoroCodec {
         rotation: shapeMap.get("rotation") as number,
         isLocked: shapeMap.get("isLocked") as boolean,
         parentId: parentIdRaw === "" ? undefined : parentIdRaw,
+        index: (shapeMap.get("index") as string) ?? "a1",
         props,
       });
     }

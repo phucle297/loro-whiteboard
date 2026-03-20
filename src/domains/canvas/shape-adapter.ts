@@ -16,6 +16,7 @@ function tldrawRecordToShape(record: TLRecord): TldrawShape {
     rotation: s.rotation ?? 0,
     isLocked: s.isLocked ?? false,
     parentId: s.parentId === "page:page" ? undefined : s.parentId,
+    index: s.index ?? "a1",
     props: s.props ?? {},
   };
 }
@@ -81,8 +82,20 @@ export class ShapeAdapter {
     // Handle initial snapshot from worker
     this.bridge.on("SNAPSHOT", ({ shapes }) => {
       this.store.mergeRemoteChanges(() => {
+        // Apply all incoming shapes
         for (const shape of shapes) {
           this.applyShape(shape);
+        }
+        // Remove shapes that no longer exist in the CRDT
+        const incomingIds = new Set(shapes.map((s) => s.id));
+        const existingShapes = this.store
+          .allRecords()
+          .filter((r) => r.typeName === "shape");
+        const toRemove = existingShapes
+          .filter((r) => !incomingIds.has(r.id))
+          .map((r) => r.id);
+        if (toRemove.length > 0) {
+          this.store.remove(toRemove);
         }
       });
     });
@@ -104,7 +117,7 @@ export class ShapeAdapter {
       rotation: shape.rotation,
       isLocked: shape.isLocked,
       parentId: shape.parentId ?? "page:page",
-      index: "a1" as any,
+      index: (shape.index ?? "a1") as any,
       props: shape.props,
       meta: {},
     };

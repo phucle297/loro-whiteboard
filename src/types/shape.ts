@@ -13,6 +13,8 @@ export interface TldrawShape {
   rotation: number;
   isLocked: boolean;
   parentId: string | undefined;
+  /** Fractional index for z-ordering (tldraw uses IndexKey strings). */
+  index: string;
   props: Record<string, unknown>;
 }
 

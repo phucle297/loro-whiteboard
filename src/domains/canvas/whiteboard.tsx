@@ -32,7 +32,7 @@ export function Whiteboard({ roomId }: WhiteboardProps) {
     adapter.start();
 
     // Initialize the worker with roomId
-    bridge.post({ type: "INIT", roomId, userId: crypto.randomUUID() });
+    bridge.post({ type: "INIT", roomId });
 
     return () => {
       adapter.stop();
